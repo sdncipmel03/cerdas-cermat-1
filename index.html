@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cerdas Cermat Interaktif</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f0fdfa; }
+        .modal-enter { animation: fadeIn 0.3s ease-out forwards; }
+        .pulse-fast { animation: pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; color: #ef4444; transform: scale(1); }
+            50% { opacity: 0.7; color: #b91c1c; transform: scale(1.05); }
+        }
+        .team-A { border-color: #111827; } /* Hitam */
+        .team-B { border-color: #ef4444; } /* Merah */
+        .team-C { border-color: #16a34a; } /* Hijau */
+        .team-Rebutan { border-color: #3b82f6; } /* Biru */
+        
+        .bg-team-A { background-color: #111827; color: white; }
+        .bg-team-B { background-color: #ef4444; color: white; }
+        .bg-team-C { background-color: #16a34a; color: white; }
+        .bg-team-Rebutan { background-color: #3b82f6; color: white; }
+    </style>
+</head>
+<body class="min-h-screen text-slate-800 flex flex-col">
+
+    <!-- START SCREEN (To initialize Audio Context) -->
+    <div id="start-screen" class="fixed inset-0 bg-teal-900 z-50 flex flex-col items-center justify-center text-white">
+        <i class="fas fa-graduation-cap text-6xl mb-6 text-yellow-400"></i>
+        <h1 class="text-4xl md:text-6xl font-bold mb-4 text-center px-4">Lomba Cerdas Cermat Babak Penyisihan Kelas</h1>
+        <p class="text-xl mb-8 text-teal-200">SD Kelas 3, 4, 5, dan 6</p>
+        <button onclick="initGame()" class="bg-yellow-400 hover:bg-yellow-500 text-teal-900 font-bold py-4 px-8 rounded-full text-2xl shadow-xl transition transform hover:scale-105">
+            Mulai Acara
+        </button>
+    </div>
+
+    <!-- CUSTOM ALERT MODAL -->
+    <div id="alert-modal" class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center transform scale-95 transition-transform duration-300" id="alert-box">
+            <div id="alert-icon" class="text-5xl mb-4 text-red-500"><i class="fas fa-exclamation-circle"></i></div>
+            <h3 id="alert-title" class="text-2xl font-bold mb-2">Peringatan</h3>
+            <p id="alert-message" class="text-gray-600 mb-6">Pesan peringatan disini.</p>
+            <button onclick="closeAlert()" class="bg-slate-800 text-white px-6 py-2 rounded-lg font-semibold hover:bg-slate-700 w-full">Tutup</button>
+        </div>
+    </div>
+
+    <!-- MAIN APP -->
+    <div class="flex-1 flex flex-col max-w-7xl mx-auto w-full p-2 md:p-4 opacity-0 transition-opacity duration-500" id="main-app">
+        
+        <!-- HEADER & NAVIGATION -->
+        <header class="bg-white rounded-2xl shadow-md p-4 mb-4 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <i class="fas fa-trophy text-yellow-500 text-3xl"></i>
+                <div>
+                    <h2 class="text-xl font-bold uppercase tracking-wide">Cerdas Cermat</h2>
+                    <p class="text-sm text-slate-500 font-medium">Panel Operator</p>
+                </div>
+            </div>
+            
+            <div class="flex flex-wrap justify-center gap-2">
+                <select id="grade-select" onchange="changeGrade(this.value)" class="bg-slate-100 border border-slate-300 rounded-lg px-4 py-2 font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500">
+                    <option value="0">Kelas 3</option>
+                    <option value="1">Kelas 4</option>
+                    <option value="2">Kelas 5</option>
+                    <option value="3">Kelas 6</option>
+                </select>
+                <select id="round-select" onchange="changeRound(this.value)" class="bg-slate-100 border border-slate-300 rounded-lg px-4 py-2 font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500">
+                    <option value="0">Babak 1 (Penyisihan)</option>
+                    <option value="1">Babak 2 (Semifinal)</option>
+                    <option value="2">Babak 3 (Rebutan)</option>
+                </select>
+            </div>
+        </header>
+
+        <!-- SCOREBOARD -->
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6" id="scoreboard">
+            <!-- Regu A -->
+            <div class="bg-white rounded-2xl shadow-md overflow-hidden border-b-4 border-gray-900">
+                <div class="bg-gray-900 text-white text-center py-2 font-bold uppercase tracking-wider text-sm">Regu A (Hitam)</div>
+                <div class="p-4 text-center">
+                    <div id="score-A" class="text-4xl md:text-5xl font-black text-slate-800">0</div>
+                    <div class="mt-4 flex justify-center gap-2">
+                        <button onclick="updateScore('A', 100)" class="bg-green-100 text-green-700 px-3 py-1 rounded-md text-sm font-bold hover:bg-green-200">+100</button>
+                        <button onclick="updateScore('A', -50)" class="bg-red-100 text-red-700 px-3 py-1 rounded-md text-sm font-bold hover:bg-red-200">-50</button>
+                    </div>
+                </div>
+            </div>
+            <!-- Regu B -->
+            <div class="bg-white rounded-2xl shadow-md overflow-hidden border-b-4 border-red-500">
+                <div class="bg-red-500 text-white text-center py-2 font-bold uppercase tracking-wider text-sm">Regu B (Merah)</div>
+                <div class="p-4 text-center">
+                    <div id="score-B" class="text-4xl md:text-5xl font-black text-slate-800">0</div>
+                    <div class="mt-4 flex justify-center gap-2">
+                        <button onclick="updateScore('B', 100)" class="bg-green-100 text-green-700 px-3 py-1 rounded-md text-sm font-bold hover:bg-green-200">+100</button>
+                        <button onclick="updateScore('B', -50)" class="bg-red-100 text-red-700 px-3 py-1 rounded-md text-sm font-bold hover:bg-red-200">-50</button>
+                    </div>
+                </div>
+            </div>
+            <!-- Regu C (Khusus Kls 6) -->
+            <div id="panel-regu-c" class="bg-white rounded-2xl shadow-md overflow-hidden border-b-4 border-green-600 hidden col-span-2 md:col-span-1">
+                <div class="bg-green-600 text-white text-center py-2 font-bold uppercase tracking-wider text-sm">Regu C (Hijau)</div>
+                <div class="p-4 text-center">
+                    <div id="score-C" class="text-4xl md:text-5xl font-black text-slate-800">0</div>
+                    <div class="mt-4 flex justify-center gap-2">
+                        <button onclick="updateScore('C', 100)" class="bg-green-100 text-green-700 px-3 py-1 rounded-md text-sm font-bold hover:bg-green-200">+100</button>
+                        <button onclick="updateScore('C', -50)" class="bg-red-100 text-red-700 px-3 py-1 rounded-md text-sm font-bold hover:bg-red-200">-50</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MAIN QUESTION AREA -->
+        <div class="flex-1 bg-white rounded-3xl shadow-xl p-6 md:p-10 border-t-8 flex flex-col" id="question-card">
+            
+            <!-- Context Header (Team Turn & Timer) -->
+            <div class="flex flex-col md:flex-row justify-between items-center mb-8 gap-6 border-b pb-6 border-slate-100">
+                <div id="turn-badge" class="px-6 py-2 rounded-full font-bold text-lg shadow-sm">
+                    Giliran: Regu A
+                </div>
+                
+                <div class="flex items-center gap-4">
+                    <div class="text-center">
+                        <div id="timer-display" class="text-6xl font-black font-mono text-slate-800 w-24">10</div>
+                        <div class="text-xs text-slate-400 font-bold uppercase mt-1">Detik</div>
+                    </div>
+                    <button id="btn-timer" onclick="toggleTimer()" class="bg-teal-500 hover:bg-teal-600 text-white h-14 w-14 rounded-full flex items-center justify-center shadow-lg transition-transform hover:scale-105 focus:outline-none">
+                        <i class="fas fa-play text-xl" id="icon-timer"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Question Content -->
+            <div class="flex-1">
+                <div class="flex items-center gap-3 mb-4">
+                    <span class="bg-slate-100 text-slate-500 px-3 py-1 rounded-lg text-sm font-bold font-mono" id="q-number">Soal 1/10</span>
+                </div>
+                <h3 id="q-text" class="text-2xl md:text-3xl font-semibold text-slate-800 leading-snug whitespace-pre-line mb-8">
+                    Pertanyaan akan muncul di sini...
+                </h3>
+                
+                <div id="q-options" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+                    <!-- Options injected via JS -->
+                </div>
+
+                <!-- Answer Reveal -->
+                <div id="answer-box" class="hidden bg-green-50 border-l-4 border-green-500 p-4 rounded-r-lg mb-8">
+                    <p class="text-sm text-green-700 font-bold mb-1 uppercase">Jawaban Benar:</p>
+                    <p id="a-text" class="text-xl font-bold text-slate-800"></p>
+                </div>
+            </div>
+
+            <!-- Bottom Controls -->
+            <div class="flex flex-col md:flex-row justify-between items-center mt-auto gap-4 pt-6 border-t border-slate-100">
+                <button onclick="prevQuestion()" class="px-6 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold transition flex items-center gap-2">
+                    <i class="fas fa-arrow-left"></i> Sebelumnya
+                </button>
+                
+                <button id="btn-reveal" onclick="revealAnswer()" class="px-8 py-3 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white font-bold shadow-lg shadow-indigo-200 transition flex items-center gap-2">
+                    <i class="fas fa-eye"></i> Tampilkan Jawaban
+                </button>
+
+                <button onclick="nextQuestion()" class="px-6 py-3 rounded-xl bg-teal-500 hover:bg-teal-600 text-white font-bold shadow-lg shadow-teal-200 transition flex items-center gap-2">
+                    Selanjutnya <i class="fas fa-arrow-right"></i>
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- DATA SOAL LENGKAP ---
+        const quizData = [
+            {
+                // INDEX 0: KELAS 3
+                gradeName: "Kelas 3",
+                rounds: [
+                    {
+                        roundName: "Babak Penyisihan",
+                        questions: [
+                            { team: "A", q: "Penulisan huruf kapital yang benar adalah ....", o: ["A. ibu pergi ke pasar.", "B. Ibu pergi ke pasar.", "C. ibu Pergi ke Pasar."], a: "B. Ibu pergi ke pasar." },
+                            { team: "A", q: "Penulisan nama orang yang benar adalah ....", o: ["A. budi", "B. Budi", "C. BUDI"], a: "B. Budi" },
+                            { team: "A", q: "Persamaan kata dari senang adalah ....", o: [], a: "Gembira" },
+                            { team: "A", q: "Lawan kata dari besar adalah ....", o: [], a: "Kecil" },
+                            { team: "A", q: "Arti peribahasa “Rajin pangkal pandai” adalah ....", o: [], a: "Anak yang rajin akan menjadi pandai" },
+                            { team: "B", q: "Peribahasa “Bersatu kita teguh, bercerai kita runtuh” berarti ....", o: [], a: "Persatuan membuat kita kuat" },
+                            { team: "B", q: "Bacalah puisi berikut untuk menjawab soal nomor 7 & 8!\n\nBUKU KESAYANGANKU\nBuku adalah sahabatku,\nTeman belajar setiap waktu.\nKubaca dengan penuh semangat,\nAgar ilmu semakin bertambah.\n\nTema puisi tersebut adalah ....", o: [], a: "Membaca buku" },
+                            { team: "B", q: "Buku disebut sebagai sahabat karena ....", o: [], a: "Buku dapat membantu kita belajar" },
+                            { team: "B", q: "Bahasa Indonesia adalah bahasa .... bangsa Indonesia.", o: [], a: "Persatuan" },
+                            { team: "B", q: "Bahasa Indonesia berasal dari bahasa ....", o: [], a: "Melayu" }
+                        ]
+                    },
+                    {
+                        roundName: "Babak Semifinal",
+                        questions: [
+                            { team: "A", q: "Kalimat yang menggunakan tanda titik dengan benar adalah ....", o: ["A. Adik bermain bola.", "B. Adik bermain bola?", "C. Adik bermain bola!"], a: "A. Adik bermain bola." },
+                            { team: "A", q: "Kalimat yang menggunakan tanda tanya adalah ....", o: ["A. Siapa nama gurumu.", "B. Siapa nama gurumu!", "C. Siapa nama gurumu?"], a: "C. Siapa nama gurumu?" },
+                            { team: "A", q: "Persamaan kata dari pandai adalah ....", o: [], a: "Pintar" },
+                            { team: "A", q: "Lawan kata dari panjang adalah ....", o: [], a: "Pendek" },
+                            { team: "A", q: "Arti peribahasa “Bagai pinang dibelah dua” adalah ....", o: [], a: "Dua orang yang sangat mirip" },
+                            { team: "B", q: "Peribahasa “Buah jatuh tidak jauh dari pohonnya” berarti ....", o: [], a: "Anak biasanya memiliki sifat yang mirip dengan orang tuanya" },
+                            { team: "B", q: "Bacalah cerita berikut untuk menjawab soal nomor 7 & 8!\n\nHADIAH UNTUK IBU\nPada hari Minggu, Siti membantu ibu membersihkan rumah. Ia menyapu lantai dan merapikan meja.\nSetelah selesai, Siti membuat kartu ucapan untuk ibu.\n“Ibu, ini hadiah untuk Ibu. Terima kasih sudah menyayangi Siti,” kata Siti.\nIbu tersenyum dan memeluk Siti.\n\nTokoh utama dalam cerita tersebut adalah ....", o: [], a: "Siti" },
+                            { team: "B", q: "Watak Siti dalam cerita tersebut adalah ....", o: [], a: "Rajin dan penyayang" },
+                            { team: "B", q: "Bahasa Indonesia digunakan oleh masyarakat Indonesia untuk ....", o: [], a: "Berkomunikasi" },
+                            { team: "B", q: "Kita harus menggunakan bahasa Indonesia dengan baik dan ....", o: [], a: "Benar" }
+                        ]
+                    },
+                    {
+                        roundName: "Babak Final Rebutan",
+                        questions: [
+                            { team: "Rebutan", q: "Penulisan nama hari yang benar adalah ....", o: ["A. hari senin", "B. hari Senin", "C. Hari senin"], a: "B. hari Senin" },
+                            { team: "Rebutan", q: "Arti kata rajin adalah ....", o: [], a: "Giat bekerja atau belajar" },
+                            { team: "Rebutan", q: "Peribahasa “Malu bertanya sesat di jalan” mengajarkan kita untuk ....", o: [], a: "Berani bertanya jika tidak tahu" },
+                            { team: "Rebutan", q: "Cerita yang tokohnya berupa hewan disebut ....", o: [], a: "Fabel" },
+                            { team: "Rebutan", q: "Lagu yang sering dinyanyikan saat memperingati Hari Sumpah Pemuda adalah ....", o: [], a: "Bangun Pemudi Pemuda" }
+                        ]
+                    }
+                ]
+            },
+            {
+                // INDEX 1: KELAS 4
+                gradeName: "Kelas 4",
+                rounds: [
+                    {
+                        roundName: "Babak Penyisihan",
+                        questions: [
+                            { team: "A", q: "Gagasan atau ide yang menjadi dasar pengembangan sebuah paragraf disebut ...", o: [], a: "Ide pokok" },
+                            { team: "A", q: "Paragraf yang kalimat utamanya terletak di awal paragraf disebut paragraf ...", o: [], a: "Deduktif" },
+                            { team: "A", q: "Paragraf yang kalimat utamanya berada di akhir paragraf dinamakan paragraf ...", o: [], a: "Induktif" },
+                            { team: "A", q: "Bacalah teks berikut!\n\"Kelinci adalah hewan herbivora. Makanan utamanya adalah sayur-sayuran seperti wortel dan kangkung. Selain itu, kelinci juga menyukai rumput segar.\"\nIde pokok dari paragraf di atas adalah ...", o: ["A. Kelinci suka makan rumput", "B. Makanan utama kelinci adalah wortel", "C. Kelinci adalah hewan herbivora", "D. Cara merawat kelinci"], a: "C. Kelinci adalah hewan herbivora" },
+                            { team: "A", q: "Kalimat yang berfungsi menjelaskan atau menambahkan informasi dari kalimat utama disebut ...", o: ["A. Kalimat pengembang/penjelas", "B. Kalimat tanya", "C. Kalimat perintah", "D. Kalimat Tunggal"], a: "A. Kalimat pengembang/penjelas" },
+                            { team: "B", q: "Langkah pertama untuk menentukan ide pokok dalam suatu paragraf adalah ...", o: ["A. Menulis ulang seluruh isi paragraf", "B. Membaca paragraf dengan cermat dari awal hingga akhir", "C. Mencari kata-kata sulit", "D. Menghitung jumlah kata"], a: "B. Membaca paragraf dengan cermat dari awal hingga akhir" },
+                            { team: "B", q: "Teks yang memuat informasi berupa fakta dan informasi yang nyata disebut teks ...", o: [], a: "Nonfiksi" },
+                            { team: "B", q: "Cerita rekaan atau buatan pengarang yang tidak benar-benar terjadi disebut cerita ...", o: [], a: "Fiksi" },
+                            { team: "B", q: "Pesan moral yang ingin disampaikan oleh pengarang kepada pembaca dalam sebuah cerita disebut …", o: [], a: "Amanat" },
+                            { team: "B", q: "Tempat, waktu, dan suasana terjadinya peristiwa dalam cerita dinamakan ...", o: [], a: "Latar/setting" }
+                        ]
+                    },
+                    {
+                        roundName: "Babak Semifinal",
+                        questions: [
+                            { team: "A", q: "Kata tanya yang digunakan untuk menanyakan alasan atau sebab terjadinya suatu peristiwa adalah ...", o: [], a: "Mengapa" },
+                            { team: "A", q: "Kata tanya \"Bagaimana\" digunakan untuk menanyakan ...", o: [], a: "Cara, proses, atau keadaan" },
+                            { team: "A", q: "Pasangan kata tanya dan fungsinya yang paling tepat di bawah ini adalah ...", o: ["A. Siapa – menanyakan waktu", "B. Berapa – menanyakan jumlah atau kuantitas", "C. Kapan – menanyakan tempat", "D. Mengapa – menanyakan cara"], a: "B. Berapa – menanyakan jumlah atau kuantitas" },
+                            { team: "A", q: "Kalimat yang disusun sesuai dengan kaidah tata bahasa Indonesia yang berlaku dinamakan kalimat ...", o: [], a: "Baku / Efektif" },
+                            { team: "A", q: "Kalimat yang mengandung aksi langsung di mana subjek melakukan pekerjaan disebut kalimat ...", o: [], a: "Aktif" },
+                            { team: "B", q: "\"Ibu menyiram tanaman di halaman rumah.\"\nJabatan kata \"tanaman\" pada kalimat di atas adalah sebagai ...", o: [], a: "Objek" },
+                            { team: "B", q: "\"Sepeda itu diperbaiki oleh Budi.\"\nKalimat di atas merupakan contoh dari kalimat ...", o: [], a: "Pasif" },
+                            { team: "B", q: "Kalimat aktif yang memerlukan objek dalam strukturnya dinamakan kalimat aktif ...", o: ["A. Intransitif", "B. Transitif", "C. Tunggal", "D. Majemuk"], a: "B. Transitif" },
+                            { team: "B", q: "Manakah di bawah ini yang merupakan contoh kalimat aktif intransitif (tidak memerlukan objek)?", o: ["A. Ayah membaca koran", "B. Adik menangis tersedu-sedu", "C. Kucing menangkap tikus", "D. Budi menendang bola"], a: "B. Adik menangis tersedu-sedu" },
+                            { team: "B", q: "Kalimat yang digunakan untuk meminta seseorang melakukan sesuatu adalah kalimat ...", o: [], a: "Perintah" }
+                        ]
+                    },
+                    {
+                        roundName: "Babak Final Rebutan",
+                        questions: [
+                            { team: "Rebutan", q: "Persamaan kata dari kata \"rajin\" adalah ...", o: [], a: "Giat" },
+                            { team: "Rebutan", q: "Lawan kata dari kata \"hemat\" adalah ...", o: [], a: "Boros" },
+                            { team: "Rebutan", q: "Kata yang memiliki ejaan dan pelafalan sama, tetapi artinya berbeda dinamakan ...", o: ["A. Sinonim", "B. Antonim", "C. Homonim", "D. Hiponim"], a: "C. Homonim" },
+                            { team: "Rebutan", q: "Kalimat berikut yang menggunakan kata ber-homonim \"bisa\" dalam arti racun ular adalah ...", o: ["A. Saya bisa mengerjakan soal ini dengan mudah.", "B. Bisa ular piton sangat berbahaya jika terkena darah.", "C. Apakah kamu bisa datang nanti sore?", "D. Semua murid pasti bisa lulus ujian."], a: "B. Bisa ular piton sangat berbahaya jika terkena darah." },
+                            { team: "Rebutan", q: "Penggunaan kata depan \"di\" yang tepat sebagai penunjuk tempat adalah ...", o: ["A. Dimakan", "B. Di sekolah", "C. Di baca", "D. Ditulis"], a: "B. Di sekolah" }
+                        ]
+                    }
+                ]
+            },
+            {
+                // INDEX 2: KELAS 5
+                gradeName: "Kelas 5",
+                rounds: [
+                    {
+                        roundName: "Babak 1",
+                        questions: [
+                            { team: "A", q: "Penulisan huruf kapital yang benar terdapat pada kalimat ....", o: ["A. ibu pergi ke pasar pada hari minggu.", "B. Ibu pergi ke pasar pada hari Minggu.", "C. Ibu pergi ke Pasar pada Hari Minggu.", "D. ibu pergi ke Pasar pada hari Minggu."], a: "B. Ibu pergi ke pasar pada hari Minggu." },
+                            { team: "A", q: "Kalimat yang menggunakan tanda baca dengan benar adalah ....", o: ["A. Siapa nama temanmu.", "B. Tolong tutup pintu!", "C. Ayah membeli, buku dan pensil.", "D. Adik sedang tidur?"], a: "B. Tolong tutup pintu!" },
+                            { team: "A", q: "Persamaan kata (sinonim) dari kata rajin adalah ....", o: [], a: "Tekun" },
+                            { team: "A", q: "Lawan kata (antonim) dari kata tinggi adalah ....", o: [], a: "Rendah" },
+                            { team: "A", q: "Peribahasa “Ringan sama dijinjing, berat sama dipikul” memiliki arti ....", o: [], a: "Saling membantu dalam menghadapi kesulitan" },
+                            { team: "B", q: "Arti peribahasa “Bagai air di daun talas” adalah ....", o: [], a: "Orang yang pendiriannya tidak tetap" },
+                            { team: "B", q: "Bacalah puisi berikut untuk menjawab soal nomor 7–8!\n\nPagi di Sekolah\nMentari bersinar cerah,\nBurung bernyanyi riang,\nKususuri jalan sekolah,\nDengan hati yang senang.\n\nTema puisi tersebut adalah ....", o: [], a: "Semangat pergi ke sekolah" },
+                            { team: "B", q: "Suasana yang tergambar dalam puisi tersebut adalah ....", o: [], a: "Gembira" },
+                            { team: "B", q: "Tokoh yang dikenal sebagai pencipta lagu Indonesia Raya adalah ....", o: [], a: "W.R. Supratman" },
+                            { team: "B", q: "Peristiwa penting yang menjadi tonggak lahirnya bahasa Indonesia sebagai bahasa persatuan adalah ....", o: [], a: "Sumpah Pemuda" }
+                        ]
+                    },
+                    {
+                        roundName: "Babak 2",
+                        questions: [
+                            { team: "A", q: "Penulisan kata depan yang benar terdapat pada kalimat ....", o: ["A. Adik bermain dirumah.", "B. Ibu memasak didapur.", "C. Ayah pergi ke kantor.", "D. Buku itu disimpan kelemari."], a: "C. Ayah pergi ke kantor." },
+                            { team: "A", q: "Penulisan kata baku yang tepat adalah ....", o: ["A. apotik", "B. nasehat", "C. aktifitas", "D. nasihat"], a: "D. nasihat" },
+                            { team: "A", q: "Kata lestari memiliki arti ....", o: [], a: "Tetap terjaga" },
+                            { team: "A", q: "Kata hemat memiliki arti ....", o: [], a: "Menggunakan sesuatu dengan bijaksana" },
+                            { team: "A", q: "Peribahasa “Besar pasak daripada tiang” berarti ....", o: [], a: "Pengeluaran lebih besar daripada penghasilan" },
+                            { team: "B", q: "Arti peribahasa “Ada udang di balik batu” adalah ....", o: [], a: "Memiliki maksud tersembunyi" },
+                            { team: "B", q: "Bacalah cerita berikut untuk menjawab soal nomor 7 & 8!\n\nHadiah untuk Ibu\nSetiap hari, Rani membantu ibunya membersihkan rumah. Pada hari Minggu, Rani membuat sebuah kartu ucapan. Ia menuliskan kata-kata indah untuk ibunya.\nKetika ibu pulang dari pasar, Rani memberikan kartu tersebut.\n“Ibu, ini hadiah untuk Ibu. Terima kasih karena selalu menyayangi Rani,” kata Rani.\nIbu tersenyum bahagia dan memeluk Rani.\n\nTokoh utama dalam cerita tersebut adalah ....", o: [], a: "Rani" },
+                            { team: "B", q: "Watak Rani dalam cerita tersebut adalah ....", o: [], a: "Penyayang dan rajin" },
+                            { team: "B", q: "Salah satu isi Sumpah Pemuda adalah menjunjung bahasa persatuan, yaitu bahasa ....", o: [], a: "Indonesia" },
+                            { team: "B", q: "Kita harus menggunakan bahasa Indonesia dengan baik dan benar sebagai bentuk rasa ....", o: [], a: "Cinta Tanah Air / bangga terhadap Bahasa Indonesia" }
+                        ]
+                    },
+                    {
+                        roundName: "Babak 3",
+                        questions: [
+                            { team: "Rebutan", q: "Kalimat yang menggunakan tanda koma dengan tepat adalah ....", o: ["A. Ibu membeli, sayur buah dan ikan.", "B. Ibu membeli sayur, buah, dan ikan.", "C. Ibu, membeli sayur buah dan ikan.", "D. Ibu membeli sayur buah, dan ikan."], a: "B. Ibu membeli sayur, buah, dan ikan." },
+                            { team: "Rebutan", q: "Sinonim dari kata indah adalah ....", o: [], a: "Elok" },
+                            { team: "Rebutan", q: "Peribahasa yang tepat untuk menggambarkan seseorang yang rajin belajar dan akhirnya berhasil adalah ....", o: [], a: "Rajin pangkal pandai" },
+                            { team: "Rebutan", q: "Cerita rakyat yang berhubungan dengan asal-usul suatu tempat disebut ....", o: [], a: "Legenda" },
+                            { team: "Rebutan", q: "Bahasa Indonesia memiliki fungsi sebagai bahasa persatuan untuk menyatukan masyarakat yang memiliki berbagai ....", o: [], a: "Suku, Bahasa daerah, budaya" }
+                        ]
+                    }
+                ]
+            },
+            {
+                // INDEX 3: KELAS 6
+                gradeName: "Kelas 6",
+                rounds: [
+                    {
+                        roundName: "Babak 1",
+                        questions: [
+                            { team: "A", q: "Penulisan huruf kapital yang benar adalah ....", o: ["A. pada hari senin, kami mengikuti upacara.", "B. Pada hari Senin, kami mengikuti upacara.", "C. Pada Hari senin, kami mengikuti upacara.", "D. Pada hari Senin, Kami mengikuti upacara."], a: "B. Pada hari Senin, kami mengikuti upacara." },
+                            { team: "A", q: "Kalimat yang menggunakan tanda baca dengan benar adalah ....", o: ["A. Ibu membeli beras gula dan minyak.", "B. Ibu membeli beras, gula, dan minyak.", "C. Ibu membeli, beras gula dan minyak.", "D. Ibu membeli beras gula, dan minyak."], a: "B. Ibu membeli beras, gula, dan minyak." },
+                            { team: "A", q: "Penulisan kata baku yang tepat adalah ....", o: ["A. resiko", "B. ijin", "C. aktivitas", "D. apotik"], a: "C. aktivitas" },
+                            { team: "A", q: "Sinonim kata cermat adalah ....", o: [], a: "Teliti" },
+                            { team: "A", q: "Antonim kata optimis adalah ....", o: [], a: "Pesimis" },
+                            { team: "B", q: "Makna kata inovasi adalah ....", o: [], a: "Pembaruan atau pengenalan hal baru" },
+                            { team: "B", q: "Arti peribahasa \"Berat sama dipikul, ringan sama dijinjing\" adalah ....", o: [], a: "Bekerja sama dalam menghadapi kesulitan" },
+                            { team: "B", q: "Peribahasa \"Bagai air di daun talas\" menggambarkan orang yang ....", o: [], a: "Mudah berubah pendirian" },
+                            { team: "B", q: "Arti peribahasa \"Besar pasak daripada tiang\" adalah ....", o: [], a: "Pengeluaran lebih besar daripada pendapatan" },
+                            { team: "B", q: "Bacalah puisi berikut untuk menjawab soal nomor 10–12!\n\nPAHLAWAN TANPA TANDA JASA\nKau datang membawa cahaya,\nMembimbing kami meraih cita-cita,\nDengan sabar kau mengajar,\nAgar masa depan menjadi gemilang.\n\nTema puisi tersebut adalah ....", o: [], a: "Perjuangan seorang guru" },
+                            { team: "C", q: "Makna ungkapan \"membawa cahaya\" dalam puisi tersebut adalah ....", o: [], a: "Memberikan ilmu dan pengetahuan" },
+                            { team: "C", q: "Amanat yang sesuai dengan puisi tersebut adalah ....", o: [], a: "Kita harus menghormati dan menghargai guru" },
+                            { team: "C", q: "Proklamasi Kemerdekaan Indonesia dibacakan pada tanggal ....", o: [], a: "17 Agustus 1945" },
+                            { team: "C", q: "Tokoh yang membacakan teks Proklamasi Kemerdekaan Indonesia adalah ....", o: [], a: "Ir. Soekarno" },
+                            { team: "C", q: "Tokoh yang mendampingi Soekarno dalam Proklamasi Kemerdekaan Indonesia adalah ....", o: [], a: "Mohammad Hatta" }
+                        ]
+                    },
+                    {
+                        roundName: "Babak 2",
+                        questions: [
+                            { team: "A", q: "Kalimat yang menggunakan tanda tanya dengan tepat adalah ....", o: ["A. Tolong ambilkan buku itu?", "B. Kapan kamu mengumpulkan tugas?", "C. Wah, indah sekali pemandangan ini?", "D. Adik sedang belajar?"], a: "B. Kapan kamu mengumpulkan tugas?" },
+                            { team: "A", q: "Penulisan kata depan yang benar terdapat pada kalimat ....", o: ["A. Ayah bekerja dikantor.", "B. Buku itu disimpan di dalam lemari.", "C. Kami bermain dilapangan.", "D. Ibu pergi kepasar."], a: "B. Buku itu disimpan di dalam lemari." },
+                            { team: "A", q: "Penulisan kalimat langsung yang benar adalah ....", o: ["A. Rina berkata, \"Saya akan belajar malam ini.\"", "B. Rina berkata \"Saya akan belajar malam ini\".", "C. Rina berkata, Saya akan belajar malam ini.", "D. \"Rina berkata, saya akan belajar malam ini.\""], a: "A. Rina berkata, \"Saya akan belajar malam ini.\"" },
+                            { team: "A", q: "Kata lestari dalam kalimat \"Kita harus menjaga hutan agar tetap lestari\" berarti ....", o: [], a: "Tetap terpelihara" },
+                            { team: "A", q: "Arti ungkapan buah tangan adalah ....", o: [], a: "Hadiah atau oleh-oleh" },
+                            { team: "B", q: "Kata efisien memiliki arti ....", o: [], a: "Menggunakan waktu dan sumber daya secara tepat" },
+                            { team: "B", q: "Peribahasa yang tepat untuk menggambarkan seseorang yang banyak berbicara tetapi sedikit pengetahuannya adalah ....", o: ["A. Air beriak tanda tak dalam.", "B. Rajin pangkal pandai.", "C. Hemat pangkal kaya.", "D. Malu bertanya sesat di jalan."], a: "A. Air beriak tanda tak dalam." },
+                            { team: "B", q: "Arti peribahasa \"Tak ada gading yang tak retak\" adalah ....", o: [], a: "Tidak ada manusia yang sempurna" },
+                            { team: "B", q: "Peribahasa \"Ada udang di balik batu\" berarti ....", o: [], a: "Seseorang memiliki maksud tersembunyi" },
+                            { team: "B", q: "Bacalah cerita berikut untuk menjawab soal nomor 10–12!\n\nKEJUJURAN DINA\nDina menemukan sebuah dompet di halaman sekolah. Di dalam dompet itu terdapat uang dan kartu identitas pemiliknya.\nTeman Dina menyarankan agar uang tersebut digunakan untuk membeli makanan. Namun, Dina menolak saran itu.\n\"Tidak, kita harus mengembalikan dompet ini kepada pemiliknya,\" kata Dina.\nDina menyerahkan dompet tersebut kepada guru. Tidak lama kemudian, pemilik dompet datang dan mengucapkan terima kasih kepada Dina.\n\nWatak Dina dalam cerita tersebut adalah ....", o: [], a: "Jujur" },
+                            { team: "C", q: "Konflik dalam cerita tersebut terjadi ketika ....", o: ["A. Dina menemukan dompet di halaman sekolah", "B. pemilik dompet datang ke sekolah", "C. teman Dina menyarankan agar uang digunakan", "D. Dina menyerahkan dompet kepada guru"], a: "C. teman Dina menyarankan agar uang digunakan" },
+                            { team: "C", q: "Amanat cerita tersebut adalah ....", o: [], a: "Kita harus mengutamakan kejujuran" },
+                            { team: "C", q: "Sumpah Pemuda diikrarkan pada tanggal ....", o: [], a: "28 Oktober 1928" },
+                            { team: "C", q: "Organisasi Budi Utomo yang berdiri pada tahun 1908 menjadi salah satu tonggak ....", o: [], a: "Kebangkitan Nasional Indonesia" },
+                            { team: "C", q: "Tokoh yang dikenal sebagai Bapak Pendidikan Nasional adalah ....", o: [], a: "Ki Hajar Dewantara" }
+                        ]
+                    },
+                    {
+                        roundName: "Babak 3",
+                        questions: [
+                            { team: "Rebutan", q: "Kalimat yang menggunakan tanda koma untuk memisahkan unsur perincian adalah ....", o: ["A. Ayah membeli, sepatu baru.", "B. Kami membawa buku pensil, penghapus dan penggaris.", "C. Kami membawa buku, pensil, penghapus, dan penggaris.", "D. Kami, membawa buku pensil dan penggaris."], a: "C. Kami membawa buku, pensil, penghapus, dan penggaris." },
+                            { team: "Rebutan", q: "Makna kata konservasi adalah ....", o: [], a: "Usaha melestarikan sumber daya alam" },
+                            { team: "Rebutan", q: "Peribahasa yang sesuai dengan sikap rajin belajar agar memperoleh keberhasilan adalah ....", o: [], a: "Rajin pangkal pandai" },
+                            { team: "Rebutan", q: "Cerita yang tokohnya berupa hewan dengan sifat seperti manusia disebut ....", o: [], a: "Fabel" },
+                            { team: "Rebutan", q: "R.A. Kartini dikenal karena perjuangannya dalam ....", o: [], a: "Memperjuangkan pendidikan dan kemajuan Perempuan" }
+                        ]
+                    }
+                ]
+            }
+        ];
+
+        // --- STATE VARIABLES ---
+        let currentGrade = 0;
+        let currentRound = 0;
+        let currentQIndex = 0;
+        
+        let scores = { A: 0, B: 0, C: 0 };
+        
+        let timerInterval = null;
+        let timeLeft = 10;
+        let isTimerRunning = false;
+
+        // --- AUDIO SYNTHS ---
+        let tickSynth, alarmSynth;
+
+        function initGame() {
+            // Setup Audio Synths
+            tickSynth = new Tone.Synth().toDestination();
+            alarmSynth = new Tone.Synth({
+                oscillator: { type: "square" },
+                envelope: { attack: 0.1, decay: 0.2, sustain: 1, release: 0.5 }
+            }).toDestination();
+            
+            Tone.start();
+            
+            document.getElementById('start-screen').style.display = 'none';
+            const app = document.getElementById('main-app');
+            app.classList.remove('opacity-0');
+            app.classList.add('opacity-100');
+
+            loadQuestion();
+        }
+
+        // --- RENDER LOGIC ---
+        function loadQuestion() {
+            stopTimer();
+            document.getElementById('answer-box').classList.add('hidden');
+            document.getElementById('btn-reveal').disabled = false;
+            
+            const gradeData = quizData[currentGrade];
+            const roundData = gradeData.rounds[currentRound];
+            
+            // Check boundaries
+            if (currentQIndex < 0) currentQIndex = 0;
+            if (currentQIndex >= roundData.questions.length) {
+                currentQIndex = roundData.questions.length - 1;
+                showModal("Informasi", "Ini adalah soal terakhir di babak ini.");
+                return;
+            }
+
+            const qData = roundData.questions[currentQIndex];
+
+            // Update Header selects if needed
+            document.getElementById('grade-select').value = currentGrade;
+            document.getElementById('round-select').value = currentRound;
+
+            // Handle Regu C visibility (Only for Grade 6)
+            if (currentGrade === 3) {
+                document.getElementById('panel-regu-c').classList.remove('hidden');
+                document.getElementById('scoreboard').classList.replace('md:grid-cols-2', 'md:grid-cols-3');
+            } else {
+                document.getElementById('panel-regu-c').classList.add('hidden');
+                document.getElementById('scoreboard').classList.replace('md:grid-cols-3', 'md:grid-cols-2');
+            }
+
+            // Update UI elements
+            document.getElementById('q-number').innerText = `Soal ${currentQIndex + 1} / ${roundData.questions.length}`;
+            document.getElementById('q-text').innerText = qData.q;
+            document.getElementById('a-text').innerText = qData.a;
+            
+            // Update Options
+            const optionsContainer = document.getElementById('q-options');
+            optionsContainer.innerHTML = '';
+            if (qData.o && qData.o.length > 0) {
+                qData.o.forEach(opt => {
+                    const div = document.createElement('div');
+                    div.className = "bg-slate-50 border border-slate-200 p-4 rounded-xl text-lg text-slate-700 shadow-sm";
+                    div.innerText = opt;
+                    optionsContainer.appendChild(div);
+                });
+            } else {
+                const div = document.createElement('div');
+                div.className = "bg-indigo-50 border border-indigo-200 p-4 rounded-xl text-lg text-indigo-800 shadow-sm col-span-1 md:col-span-2 text-center font-semibold italic";
+                div.innerText = "(Soal Isian / Uraian)";
+                optionsContainer.appendChild(div);
+            }
+
+            // Update Turn Badge & Card Border
+            const badge = document.getElementById('turn-badge');
+            const card = document.getElementById('question-card');
+            
+            // Remove previous theme classes
+            badge.className = "px-6 py-2 rounded-full font-bold text-lg shadow-sm";
+            card.className = "flex-1 bg-white rounded-3xl shadow-xl p-6 md:p-10 border-t-8 flex flex-col";
+            
+            if (qData.team === 'A') {
+                badge.classList.add('bg-team-A');
+                badge.innerText = "Giliran: REGU A (HITAM)";
+                card.classList.add('team-A');
+            } else if (qData.team === 'B') {
+                badge.classList.add('bg-team-B');
+                badge.innerText = "Giliran: REGU B (MERAH)";
+                card.classList.add('team-B');
+            } else if (qData.team === 'C') {
+                badge.classList.add('bg-team-C');
+                badge.innerText = "Giliran: REGU C (HIJAU)";
+                card.classList.add('team-C');
+            } else {
+                badge.classList.add('bg-team-Rebutan');
+                badge.innerText = "BABAK REBUTAN (Semua Regu)";
+                card.classList.add('team-Rebutan');
+            }
+        }
+
+        // --- NAVIGATION ---
+        function changeGrade(idx) {
+            currentGrade = parseInt(idx);
+            currentRound = 0;
+            currentQIndex = 0;
+            resetScores();
+            loadQuestion();
+        }
+
+        function changeRound(idx) {
+            currentRound = parseInt(idx);
+            currentQIndex = 0;
+            loadQuestion();
+        }
+
+        function nextQuestion() {
+            const roundData = quizData[currentGrade].rounds[currentRound];
+            if (currentQIndex < roundData.questions.length - 1) {
+                currentQIndex++;
+                loadQuestion();
+            } else {
+                showModal("Babak Selesai", "Silahkan pindah ke babak selanjutnya lewat menu di atas.");
+            }
+        }
+
+        function prevQuestion() {
+            if (currentQIndex > 0) {
+                currentQIndex--;
+                loadQuestion();
+            }
+        }
+
+        function revealAnswer() {
+            stopTimer();
+            document.getElementById('answer-box').classList.remove('hidden');
+        }
+
+        // --- SCORING LOGIC ---
+        function updateScore(team, amount) {
+            scores[team] += amount;
+            document.getElementById(`score-${team}`).innerText = scores[team];
+        }
+
+        function resetScores() {
+            scores = { A: 0, B: 0, C: 0 };
+            document.getElementById('score-A').innerText = "0";
+            document.getElementById('score-B').innerText = "0";
+            document.getElementById('score-C').innerText = "0";
+        }
+
+        // --- TIMER LOGIC ---
+        function toggleTimer() {
+            if (isTimerRunning) {
+                stopTimer();
+            } else {
+                startTimer();
+            }
+        }
+
+        function startTimer() {
+            timeLeft = 10;
+            isTimerRunning = true;
+            document.getElementById('timer-display').innerText = timeLeft;
+            document.getElementById('timer-display').classList.add('pulse-fast');
+            document.getElementById('icon-timer').classList.replace('fa-play', 'fa-stop');
+            document.getElementById('btn-timer').classList.replace('bg-teal-500', 'bg-red-500');
+            document.getElementById('btn-timer').classList.replace('hover:bg-teal-600', 'hover:bg-red-600');
+
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                document.getElementById('timer-display').innerText = timeLeft;
+                
+                if (timeLeft > 0) {
+                    if (tickSynth) tickSynth.triggerAttackRelease("C6", "32n");
+                } else {
+                    stopTimer();
+                    if (alarmSynth) alarmSynth.triggerAttackRelease("C3", "0.5");
+                    showModal("Waktu Habis!", "Waktu untuk menjawab telah habis.");
+                }
+            }, 1000);
+        }
+
+        function stopTimer() {
+            clearInterval(timerInterval);
+            isTimerRunning = false;
+            document.getElementById('timer-display').classList.remove('pulse-fast');
+            document.getElementById('timer-display').innerText = timeLeft > 0 ? timeLeft : "0";
+            document.getElementById('icon-timer').classList.replace('fa-stop', 'fa-play');
+            document.getElementById('btn-timer').classList.replace('bg-red-500', 'bg-teal-500');
+            document.getElementById('btn-timer').classList.replace('hover:bg-red-600', 'hover:bg-teal-600');
+        }
+
+        // --- MODAL LOGIC ---
+        function showModal(title, message) {
+            document.getElementById('alert-title').innerText = title;
+            document.getElementById('alert-message').innerText = message;
+            
+            if (title === "Waktu Habis!") {
+                document.getElementById('alert-icon').innerHTML = '<i class="fas fa-hourglass-end"></i>';
+                document.getElementById('alert-icon').className = "text-5xl mb-4 text-red-500";
+            } else {
+                document.getElementById('alert-icon').innerHTML = '<i class="fas fa-info-circle"></i>';
+                document.getElementById('alert-icon').className = "text-5xl mb-4 text-blue-500";
+            }
+
+            const modal = document.getElementById('alert-modal');
+            const box = document.getElementById('alert-box');
+            modal.classList.remove('hidden');
+            box.classList.add('modal-enter');
+        }
+
+        function closeAlert() {
+            document.getElementById('alert-modal').classList.add('hidden');
+            document.getElementById('alert-box').classList.remove('modal-enter');
+        }
+    </script>
+</body>
+</html>
